@@ -140,7 +140,7 @@ realtime.connection.once("connected", () => {
         }
     });
 
-    deadPlayerChannel.subscribe("dead-notification", (msg) => {
+    deadPlayerChannel.subscribe("dead-notification", (msg) => {  //I use dead-notification instead of dead-notif
         players[msg.data.deadPlayerId].isAlive = false;
         killerBulletId = msg.data.killerBulletId;
         alivePlayers--;
@@ -154,45 +154,190 @@ realtime.connection.once("connected", () => {
 
 
 const startGameDataTicker = function() {
-    
+    let tickInterval = setInterval(() => {
+        if(!gameTickerOn) {
+            clearInterval(tickInterval);
+        }
+        else {
+            bulletOrBlank = "";
+            bullerTimer += GAME_TICKER_MS;
+            if(bulletTimer >= GAME_TICKER_MS * 5) {
+                bulletTimer = 0;
+                bulletOrBlank = {
+                    y: SHIP_PLATFORM,
+                    id: "bulletId-" + Math.floor((Math.random() * 2000 + 50) * 1000) / 1000,
+                };
+            }
+
+            if(shipBody) { //??
+                copyOfShipBody = shipBody
+            }
+
+            gameRoom.publish("game-state", {
+                players: players,
+                playerCount: totalPlayers,
+                shipBody: copyOfShipBody.position,
+                bulletOrBlank: bulletOrBlank,
+                gameOn: gameOn,
+                killerBulletId: killerBulletId
+            });
+        }
+    }, GAME_TICKER_MS);
 };
 
-const subscribeToPlayerInput = function() {
-
+const subscribeToPlayerInput = function(channelInstance, playerId) {
+    channelInstance.subscribe("position", (msg) => { //I use position instead of pos
+        if(msg.data.keyPressed == "left") {
+            if(players[playerId].x - 20 < 20) {
+                players[playerId].x = 20;
+            }
+            else {
+                players[playerId].x -= 20;
+            }
+        }
+        else if (msg.data.keyPressed == "right") {
+            if(players[playerId].x + 20 > 1380) {
+                players[playerId].x = 1380;
+            }
+            else {
+                players[playerId].x += 20;
+            }
+        }
+    });
 };
 
 
-const startDownwardMovement = function() {
+const startDownwardMovement = function(playerId) {
+    let interval = setInterval(() => {
+        if(players[playerId] && players[playerId].isAlive) {
+            players[playerId].y += PLAYER_VERTICAL_INCREMENT;
+            players[playerId].score += PLAYER_SCORE_INCREMENT;
 
+            if(players[playerId].y > SHIP_PLATFORM) {
+                finishGame(playerId);
+                clearInterval(interval);
+            }
+        }
+        else {
+            clearInterval(interval);
+        }
+    }, PLAYER_VERTICAL_MOVEMENT_UPDATE_INTERVAL);
 };
 
 
-const finishGame = function() {
+const finishGame = function(playerId) {
+    let firstRunnerUpName = "";
+    let secondRunnerUpName = "";
+    let winnerName = "Nobody";
+    let leftoverPlayers = new Array();
 
+    for(let item in players) {
+        leftoverPlayers.push({
+            nickname: players[item].nickname,
+            score: players[item].score
+        });
+    }
+
+    leftoverPlayers.sort((a,b) => {
+        return b.score - a.score;
+    });
+
+    if(playerId == "") {
+        if(leftoverPlayers.length >= 3) {
+            firstRunnerUpName = leftoverPlayers[0].nickname;
+            secondRunnerUpName = leftoverPlayers[1].nickname;
+        }
+        else if(leftoverPlayers == 2) {
+            firstRunnerUpName = leftoverPlayers[0].nickname;
+        }
+    }
+    else {
+        winnerName = players[playerId].nickname;
+        if(leftoverPlayers >= 3){
+            firstRunnerUpName = leftoverPlayers[1].nickname;
+            secondRunnerUpName = leftoverPlayers[2].nickname;
+        }
+        else if (leftoverPlayers == 2) {
+            firstRunnerUpName = leftoverPlayers[1].nickname;
+        }
+    }
+
+    gameRoom.publish("game-over", {
+        winner: winnerName,
+        firstRunnerUpName: firstRunnerUpName,
+        secondRunnerUpName: secondRunnerUpName,
+        totalPlayers: totalPlayers
+    });
+
+    resetServerState();
 };
 
 
 const resetServerState = function() {
-
+    peopleAccessingWebsite = 0;
+    gameOn = false;
+    gameTickerOn = false;
+    totalPlayers = 0;
+    alivePlayers = 0;
+    for(let item in playerChannels) {
+        playerChannels[item].unsubscribe();
+    }
 };
 
 const startShipAndBullets = function() {
+    gameOn = true;
 
+    world = new p2.World({
+        gravity: [0, -9.82]
+    });
+
+    shipBody = new p2.Body({
+        position: [shipX, shipY],
+        velocity: [calculateRandomVelocity(), 0]
+    });
+    world.addBody(shipBody);
+
+    startMovingPhysicsWorld();
+
+    for(let playerId in players) {
+        startDownwardMovement(playerId);
+    }
 };
 
 
 const startMovingPhysicsWorld = function() {
+    let p2WorldInterval = setInterval(function() {
+        if(!gameOn) {
+            clearInterval(p2WorldInterval);
+        }
+        else {
+            if(++shipVelocityTimer >= 80) {
+                shipVelocityTimer = 0;
+                shipBody.velocity[0] = calculateRandomVelocity();
+            }
 
+            world.step(P2_WORLD_TIME_STEP);
+
+            if(shipBody.position[0] > 1400 && shipBody.velocity[0] > 0) {
+                shipBody.position[0] = 0
+            }
+            else if(shipBody.position[0] < 0 && shipBody.velocity < 0) {
+                shipBody.position[0] = 1400;
+            }
+        }
+    }, 1000 * P2_WORLD_TIME_STEP)
 };
 
 
 const calculateRandomVelocity = function() {
-
+    let randomShipXVelocity = Math.floor(Math.random() * 200) + 20;
+    randomShipXVelocity *= Math.floor(Math.random() * 2) == 1? 1: -1;
+    return randomShipXVelocity;
 };
 
 
 const randomAvaterSelector = function() {
-
+    return Math.floor(Math.random() * 3);
 };
 
 
