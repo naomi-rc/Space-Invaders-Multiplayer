@@ -327,6 +327,16 @@ class GameScene extends Phaser.Scene {
             }
         }
     }
+
+    publishMyDeathNews(bullet, avatar) {
+        if(amIalive) {
+            deadPlayerChannel.publish("death-notification", {
+                killerBulletId: bulletThatShotMe,
+                deadPlayerId: myClientId
+            });
+        }
+        amIalive = false;
+    }
 }
 
 window.onload = function(){
