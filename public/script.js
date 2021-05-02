@@ -233,8 +233,76 @@ class GameScene extends Phaser.Scene {
     }
 
     update(){
+        if(gameOn){
+            if(this.ship.x){
+                this.ship.x = latestShipPosition;
+            }
+            else {
+                this.ship = this.physics.add.sprite(latestShipPosition, config.height - 32, "ship").setOrigin(0.5, 0.5);
+                this.ship.x = latestShipPosition;
+            }
+
+            for(let item in this.visibleBullets){
+                if(this.visibleBullets[item].toLauch) {
+                    this.visibleBullets[item].toLauch = false;
+                    this.createBullet(this.visibleBullets[item]);
+                }
+                else {
+                    this.visibleBullets[item].bulletSprite.y -= 20;
+
+                    if(this.visibleBullets[item].bulletSprite.y < 0 || this.visibleBullets[item].id == bulletThatShotSomeone){
+                        this.visibleBullets[item].bulletSprite.destroy();
+                        delete this.visibleBullets[item];
+                    }
+                }
+            }
+        }
+
+        for(let item in this.avatars) {
+            if(!players[item]) {
+                this.avatars[item].destroy();
+                delete this.avatars[item];
+            }
+        }
+
+        for(let item in players) {
+            let avatarId = players[item].id;
+            if(this.avatars[avatarId] && players[item].isAlive) {
+                this.avatars[avatarId].x = players[item].x;
+                this.avatars[avatarId].y = players[item].y;
+
+                if(avatarId = myClientId){
+                    document.getElementById("score").innerHTML = "Score: " + players[item].score;
+                }
+            }
+            else if(!this.avatars[avatarId] && players[item].isAlive) {
+                if(players[item].id != myClientId) {
+                    let avatarName = "avatar" + players[item].invaderAvatarType + players[item].invaderAvatarColor;
+                    this.avatars[avatarId] = this.physics.add.sprite(players[item].x, players[item].y, avatarName).setOrigin(0.5, 0.5);
+                    this.avatars[avatarId].setCollideWorldBounds(true);
+                    document.getElementById("join-leave-updates").innerHTML = players[avatarId].nickname + " joined";
+
+                    setTimeout(() => {
+                        document.getElementById("join-leave-updates").innerHTML = "";
+                    }, 2000);
+                }
+                else if(players[item].id == myClientId) {
+                    let avatarName = "avatar" + players[item].invaderAvatarType;
+                    this.avatars[avatarId] = thi.physics.add.sprite(players[item].x, players[item].y, avatarName).setOrigin(0.5, 0.5);
+                    this.avatars[avatarId].setCollideWorldBounds(true);
+                    amIalive = true;
+                }
+            }
+            else if (this.avatars[avatarId] && !players[item].isAlive) {
+                this.explodeAndKill(avatarId);
+            }
+        }
+
+        this.publishMyInput();
 
     }
+
+    
 }
 
 window.onload = function(){
