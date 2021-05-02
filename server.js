@@ -39,7 +39,7 @@ let copyOfShipBody = {
 };
 
 
-const realtime = Ably.realtime({
+const realtime = Ably.Realtime({
     key: ABLY_API_KEY,
     echoMessages: false //so server doesn't receive its own messages
 });
@@ -48,7 +48,7 @@ const uniqueID = function() {
     return "id-" + totalPlayers + Math.random().toString(36).substr(2,16);
 };
 
-app.use(express.static("js"));
+app.use(express.static("public"));
 
 app.get("/auth", (req, res) => {
     const tokenParams = {clientId : uniqueID()};
@@ -72,21 +72,21 @@ app.get("/", (req, res) => {
         res.sendFile(__dirname + "/views/gameRoomFull.html");
     }
     else{
-        res.sendFile(_dirname + "/views/intro.html");
+        res.sendFile(__dirname + "/views/intro.html");
     }
 });
 
-app.get("/gameplay", () => {
-    res.sendFile(_dirname + "/views/index.html");
+app.get("/gameplay",  (req, res) => {
+    res.sendFile(__dirname + "/views/index.html");
 });
 
 
-app.get("/winner", () => {
-    res.sendFile(_dirname + "/views/winner.html");
+app.get("/winner",  (req, res) => {
+    res.sendFile(__dirname + "/views/winner.html");
 });
 
-app.get("/gameover", () => {
-    res.sendFile(_dirname + "/views/gameover.html");
+app.get("/gameover",  (req, res) => {
+    res.sendFile(__dirname + "/views/gameover.html");
 });
 
 
@@ -94,7 +94,7 @@ realtime.connection.once("connected", () => {
     //For updates on game context and player entering/leaving
     gameRoom = realtime.channels.get("game-room"); 
     //For updates on a player's death
-    deadPlayerChannel = realtimer.channels.get("dead-player");
+    deadPlayerChannel = realtime.channels.get("dead-player");
 
     gameRoom.presence.subscribe("enter", (player) => {
         let newPlayerId;
@@ -342,5 +342,5 @@ const randomAvaterSelector = function() {
 
 
 const listener = app.listen(process.env.PORT, () => {
-    console.log("App listening on port " + listener.address().port);
+    console.log("App listening on http://localhost:" + listener.address().port);
 })
