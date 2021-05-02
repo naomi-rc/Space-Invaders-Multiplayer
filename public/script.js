@@ -282,9 +282,7 @@ class GameScene extends Phaser.Scene {
                     this.avatars[avatarId].setCollideWorldBounds(true);
                     document.getElementById("join-leave-updates").innerHTML = players[avatarId].nickname + " joined";
 
-                    setTimeout(() => {
-                        document.getElementById("join-leave-updates").innerHTML = "";
-                    }, 2000);
+                    setTimeout(() => { document.getElementById("join-leave-updates").innerHTML = "";}, 2000);
                 }
                 else if(players[item].id == myClientId) {
                     let avatarName = "avatar" + players[item].invaderAvatarType;
@@ -302,7 +300,33 @@ class GameScene extends Phaser.Scene {
 
     }
 
-    
+    explodeAndKill(deadPlayerId) {
+        this.avatars[deadPlayerId].disableBody(true, true);
+        let explosion = new Explosion(this, this.avatars[deadPlayerId].x, this.avatars[deadPlayerId].y);
+        delete this.avatars[deadPlayerId];
+        document.getElementById("join-leave-updates").innerHTML = players[deadPlayerId].nickname + " died";
+        setTimeout(() => {document.getElementById("join-leave-updates").innerHTML = ""}, 2000);        
+    }
+
+    publishMyInput() {
+        if(Phaser.Input.Keyboard.JustDown(this.cursorKeys.left) && amIalive) {
+            myChannel.publish("position", {keyPressed: "left"});
+        }
+        else if(Phaser.Input.Keyboard.JustDown(this.cursorKeys.right) && amIalive) {
+            myChannel.publish("position", {keyPressed: "right"});
+        }
+    }
+
+    createBullet(bulletObject) {
+        let bulletId = bulletObject.id;
+        this.visibleBullets[bulletId].bulletSprite = this.physics.add.sprite(this.ship.x - 8, bulletObject.y, "bullet").setOrigin(0.5, 0.5);
+
+        if(amIalive) {
+            if(this.physics.add.overlap(this.visibleBullets[bulletI].bulletSprite, this.avatars[myClientId], this.publishMyDeathNews, null, this)) {
+                bulletThatShotMe = bulletId;
+            }
+        }
+    }
 }
 
 window.onload = function(){
